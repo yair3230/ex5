@@ -182,7 +182,8 @@ void playAllSongs(Playlist *playlist) {
     }
     playSong(currentSong->song);
 }
-void swapFirstSongNode(Playlist* playlist, SongList *currentNode, SongList *nextNode) {
+
+void swapFirstSongNode(Playlist *playlist, SongList *currentNode, SongList *nextNode) {
     playlist->songList = nextNode;
     currentNode->next = nextNode->next;
     nextNode->next = currentNode;
@@ -194,38 +195,30 @@ void swapSongNode(SongList *prevNode, SongList *currentNode, SongList *nextNode)
     nextNode->next = currentNode;
 }
 
-void sortPlaylistByYear(Playlist *playlist) {
-    int sorted = FALSE, firstSong = TRUE;
-    SongList *currentNode = NULL;
-    SongList *prevNode = NULL;
-    SongList *nextNode = NULL;
-    while (!sorted) {
-        // Re-assign all values
-        sorted = TRUE;
-        firstSong = TRUE;
-        currentNode = playlist->songList;
-        nextNode = currentNode->next;
-        prevNode = NULL;
-        while (currentNode->next != NULL) {
-            if (currentNode->song->year > nextNode->song->year) {
-                sorted = FALSE;
-                if (firstSong) {
-                    swapFirstSongNode(playlist, currentNode, nextNode);
-                } else {
-                    swapSongNode(prevNode, currentNode, nextNode);
-                }
-            }
-            firstSong = FALSE;
-
-            // Go to next node
-            prevNode = currentNode;
-            currentNode = nextNode;
-            nextNode = nextNode->next;
-        }
+int shouldSwap(int sortType, SongList *currentNode, SongList *nextNode) {
+    if (sortType == SORT_ALPHABETICALLY) {
+        char *nameCurrent = currentNode->song->title;
+        char *nameNext = nextNode->song->title;
+        if (strcmp(nameCurrent, nameNext) > 0)
+            return TRUE;
+        return FALSE;
     }
+    if (sortType == SORT_YEAR) {
+        if (currentNode->song->year > nextNode->song->year)
+            return TRUE;
+        return FALSE;
+    }
+    if (sortType == SORT_ASCENDING) {
+        if (currentNode->song->streams > nextNode->song->streams)
+            return TRUE;
+        return FALSE;
+    }
+    if (currentNode->song->streams < nextNode->song->streams)
+        return TRUE;
+    return FALSE;
 }
 
-void sortPlaylistByStreamsAscending(Playlist* playlist) {
+void sortPlaylist(Playlist *playlist, int sortType) {
     int sorted = FALSE, firstSong = TRUE;
     SongList *currentNode = NULL;
     SongList *prevNode = NULL;
@@ -240,7 +233,8 @@ void sortPlaylistByStreamsAscending(Playlist* playlist) {
 
         // Stop when there is no next node
         while (currentNode->next != NULL) {
-            if (currentNode->song->streams > nextNode->song->streams) {
+            // Check if alphabetically the names should be swapped.
+            if (shouldSwap(sortType, currentNode, nextNode)) {
                 sorted = FALSE;
                 if (firstSong) {
                     swapFirstSongNode(playlist, currentNode, nextNode);
@@ -257,31 +251,17 @@ void sortPlaylistByStreamsAscending(Playlist* playlist) {
         }
     }
 }
+
 void sortMenu(Playlist *playlist) {
     printf("choose:\n1. sort by year\n2. sort by streams - ascending order\n"
         "3. sort by streams - descending order\n4. sort alphabetically\n");
     int choice;
     scanf(" %d", &choice);
-    switch (choice) {
-        case SORT_YEAR: {
-            sortPlaylistByYear(playlist);
-            break;
-        }
-        case SORT_ASCENDING: {
-            sortPlaylistByStreamsAscending(playlist);
-            break;
-        }
-        case SORT_DESCENDING: {
-            break;
-        }
-        case SORT_ALPHABETICALLY: {
-            break;
-        }
-        default: {
-            printf("Invalid choice");
-            break;
-        }
+    while (choice < 0 || choice > SORT_ALPHABETICALLY) {
+        printf("Invalid choice");
+        scanf(" %d", &choice);
     }
+    sortPlaylist(playlist, choice);
 }
 
 void playlistMenu(Playlist *playlist) {
@@ -464,6 +444,8 @@ void printPlaylistsMenu() {
 }
 
 int main() {
+    // printf("%d", strcmp("bbb","bba"));
+    // exit(0);
     // Set the default value of choice to a null one.
     char choice = '0';
     // Song *song = calloc(1, sizeof(0));
