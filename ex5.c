@@ -42,7 +42,7 @@ typedef struct PlaylistList {
 } PlaylistList;
 
 char *getString() {
-    char *string = calloc(1, sizeof(char *));
+    char *string = calloc(1, sizeof(char));
     // Get a single char each time
     char newChar = (char) getchar();
     int counter = 0;
@@ -53,11 +53,13 @@ char *getString() {
         ++counter;
 
         // Resize the string to have space for the new char
-        string = realloc(string, sizeof(string) + sizeof(char *));
+        string = realloc(string, sizeof(string) + sizeof(char));
 
         // If realloc failed, crash
-        if (string == NULL)
+        if (string == NULL) {
+            free(string);
             exit(1);
+        }
 
         // read the next char
         newChar = (char) getchar();
@@ -89,6 +91,12 @@ SongList *findSongByIndex(SongList *songList, int index) {
     return currentNode;
 }
 
+void playSong(Song *song) {
+    printf("Now playing %s:\n", song->title);
+    printf("$ %s $\n", song->lyrics);
+    ++song->streams;
+}
+
 void watchPlayList(Playlist *playlist) {
     int counter = 1;
     SongList *currentNode = playlist->songList;
@@ -104,18 +112,22 @@ void watchPlayList(Playlist *playlist) {
             break;
         song = currentNode->song;
     }
+
     // Assuming input is valid
     int choice = -1;
     while (choice != SONG_QUIT) {
         printf("choose a song to play, or 0 to quit:\n");
 
         scanf(" %d", &choice);
+        printf("got choice\n");
         getchar(); // Consume \n
-        if (choice == SONG_QUIT)
+        if (choice == SONG_QUIT) {
+            printf("entered if\n");
             return;
-        SongList* songNode = findSongByIndex(playlist->songList, choice);
-        printf("$ %s $\n", songNode->song->lyrics);
-        ++songNode->song->streams;
+        }
+
+        SongList *songNode = findSongByIndex(playlist->songList, choice);
+        playSong(songNode->song);
     }
 }
 
@@ -154,6 +166,15 @@ void addSong(Playlist *playlist) {
     newNode->song->lyrics = lyrics;
 }
 
+void playAllSongs(Playlist *playlist) {
+    SongList *currentSong = playlist->songList;
+    while (currentSong->next != NULL) {
+        playSong(currentSong->song);
+        currentSong = currentSong->next;
+    }
+    playSong(currentSong->song);
+}
+
 void playlistMenu(Playlist *playlist) {
     printf("playlist %s\n", playlist->name);
 
@@ -167,10 +188,15 @@ void playlistMenu(Playlist *playlist) {
         switch (choice) {
             case WATCH_PLAYLIST: {
                 watchPlayList(playlist);
+                printf("Exited");
                 break;
             }
             case ADD_SONG: {
                 addSong(playlist);
+                break;
+            }
+            case PLAY_SONG: {
+                playAllSongs(playlist);
                 break;
             }
             case PLAYLIST_EXIT: {
