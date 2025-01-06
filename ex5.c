@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+# define TRUE 1
+# define FALSE 0
+
 # define WATCH_PLAYLIST '1'
 # define ADD_PLAYLIST '2'
 # define REMOVE_PLAYLIST '3'
@@ -15,6 +18,11 @@
 # define PLAYLIST_EXIT '6'
 
 # define SONG_QUIT 0
+
+# define SORT_YEAR 1
+# define SORT_ASCENDING 2
+# define SORT_DESCENDING 3
+# define SORT_ALPHABETICALLY 4
 
 typedef struct Song {
     char *title;
@@ -174,6 +182,107 @@ void playAllSongs(Playlist *playlist) {
     }
     playSong(currentSong->song);
 }
+void swapFirstSongNode(Playlist* playlist, SongList *currentNode, SongList *nextNode) {
+    playlist->songList = nextNode;
+    currentNode->next = nextNode->next;
+    nextNode->next = currentNode;
+}
+
+void swapSongNode(SongList *prevNode, SongList *currentNode, SongList *nextNode) {
+    prevNode->next = nextNode;
+    currentNode->next = nextNode->next;
+    nextNode->next = currentNode;
+}
+
+void sortPlaylistByYear(Playlist *playlist) {
+    int sorted = FALSE, firstSong = TRUE;
+    SongList *currentNode = NULL;
+    SongList *prevNode = NULL;
+    SongList *nextNode = NULL;
+    while (!sorted) {
+        // Re-assign all values
+        sorted = TRUE;
+        firstSong = TRUE;
+        currentNode = playlist->songList;
+        nextNode = currentNode->next;
+        prevNode = NULL;
+        while (currentNode->next != NULL) {
+            if (currentNode->song->year > nextNode->song->year) {
+                sorted = FALSE;
+                if (firstSong) {
+                    swapFirstSongNode(playlist, currentNode, nextNode);
+                } else {
+                    swapSongNode(prevNode, currentNode, nextNode);
+                }
+            }
+            firstSong = FALSE;
+
+            // Go to next node
+            prevNode = currentNode;
+            currentNode = nextNode;
+            nextNode = nextNode->next;
+        }
+    }
+}
+
+void sortPlaylistByStreamsAscending(Playlist* playlist) {
+    int sorted = FALSE, firstSong = TRUE;
+    SongList *currentNode = NULL;
+    SongList *prevNode = NULL;
+    SongList *nextNode = NULL;
+    while (!sorted) {
+        // Re-assign all values
+        sorted = TRUE;
+        firstSong = TRUE;
+        currentNode = playlist->songList;
+        nextNode = currentNode->next;
+        prevNode = NULL;
+
+        // Stop when there is no next node
+        while (currentNode->next != NULL) {
+            if (currentNode->song->streams > nextNode->song->streams) {
+                sorted = FALSE;
+                if (firstSong) {
+                    swapFirstSongNode(playlist, currentNode, nextNode);
+                } else {
+                    swapSongNode(prevNode, currentNode, nextNode);
+                }
+            }
+            firstSong = FALSE;
+
+            // Go to next node
+            prevNode = currentNode;
+            currentNode = nextNode;
+            nextNode = nextNode->next;
+        }
+    }
+}
+void sortMenu(Playlist *playlist) {
+    printf("choose:\n1. sort by year\n2. sort by streams - ascending order\n"
+        "3. sort by streams - descending order\n4. sort alphabetically\n");
+    int choice;
+    scanf(" %d", &choice);
+    switch (choice) {
+        case SORT_YEAR: {
+            sortPlaylistByYear(playlist);
+            break;
+        }
+        case SORT_ASCENDING: {
+            sortPlaylistByStreamsAscending(playlist);
+            break;
+        }
+        case SORT_DESCENDING: {
+            break;
+        }
+        case SORT_ALPHABETICALLY: {
+            break;
+        }
+        default: {
+            printf("Invalid choice");
+            break;
+        }
+    }
+}
 
 void playlistMenu(Playlist *playlist) {
     printf("playlist %s\n", playlist->name);
@@ -188,7 +297,6 @@ void playlistMenu(Playlist *playlist) {
         switch (choice) {
             case WATCH_PLAYLIST: {
                 watchPlayList(playlist);
-                printf("Exited");
                 break;
             }
             case ADD_SONG: {
@@ -197,6 +305,10 @@ void playlistMenu(Playlist *playlist) {
             }
             case PLAY_SONG: {
                 playAllSongs(playlist);
+                break;
+            }
+            case SORT_PLAYLIST: {
+                sortMenu(playlist);
                 break;
             }
             case PLAYLIST_EXIT: {
@@ -363,10 +475,10 @@ int main() {
     if (playlists == NULL) {
         return 1;
     }
-    // playlists->playlist = p;
-    // printf("%s\n", p->songList->song->artist);
+
     // Initialize the playlists' list.
     playlists->numOfPlaylist = 0;
+
 
     while (choice != MAIN_EXIT) {
         printPlaylistsMenu();
