@@ -2,7 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NULL 0
+# define WATCH_PLAYLIST '1'
+# define ADD_PLAYLIST '2'
+# define REMOVE_PLAYLIST '3'
+# define MAIN_EXIT '4'
+
+# define SHOW_PLAYLIST '1'
+# define ADD_SONG '2'
+# define DELETE_SONG '3'
+# define SORT_PLAYLIST '4'
+# define PLAY_SONG '5'
+# define PLAYLIST_EXIT '6'
 
 typedef struct Song {
     char *title;
@@ -19,7 +29,7 @@ typedef struct SongList {
 
 typedef struct Playlist {
     char *name;
-    SongList **songList;
+    SongList *songList;
     int songsNum;
 } Playlist;
 
@@ -29,23 +39,142 @@ typedef struct PlaylistList {
     struct PlaylistList *next;
 } PlaylistList;
 
+char *getString() {
+    char *string = calloc(1, sizeof(char *));
+    // Get a single char each time
+    char newChar = (char) getchar();
+    int counter = 0;
+    while (newChar != '\n') {
+        // Add new char to current index
+        string[counter] = newChar;
+        string[counter + 1] = '\0';
+        ++counter;
+
+        // Resize the string to have space for the new char
+        string = realloc(string, sizeof(string) + sizeof(char *));
+
+        // If realloc failed, crash
+        if (string == NULL)
+            exit(1);
+
+        // read the next char
+        newChar = (char) getchar();
+    }
+    return string;
+}
+
+// Return the last node of the playlists' list
+SongList *findLastSong(SongList *songList) {
+    if (songList == NULL) {
+        return songList;
+    }
+    SongList *currentNode = songList;
+    while (currentNode->next != NULL) {
+        printf("entered loop");
+        currentNode = currentNode->next;
+    }
+    return currentNode;
+}
+
+void addSong(Playlist *playlist) {
+    SongList *lastNode = findLastSong(playlist->songList);
+    SongList *newNode;
+    if (lastNode->song != NULL) {
+        // If current node is occupied, we add the new node as next
+        newNode = calloc(1, sizeof(SongList));
+        lastNode->next = newNode;
+    } else {
+        // If current node is empty, this is the node we are editing.
+        newNode = lastNode;
+    }
+    // Create emtpy song
+    newNode->song = calloc(1, sizeof(Song));
+
+    // Get details from user
+    printf("Enter song's details\n");
+    printf("Title:\n");
+    char *title = getString();
+    newNode->song->title = title;
+
+    printf("Artist:\n");
+    char *artist = getString();
+    newNode->song->artist = artist;
+
+    printf("Year of release:\n");
+    int year = 0;
+    scanf("%4d", &year);
+    newNode->song->year = year;
+
+    getchar(); // Consume \n
+    printf("Lyrics:\n");
+    char *lyrics = getString();
+    newNode->song->lyrics = lyrics;
+}
+
+void playlistMenu(Playlist *playlist) {
+    printf("playlist %s\n", playlist->name);
+    printf("\t1. Show Playlist\n\t2. Add Song\n\t3. Delete Song\n\t4. Sort\n\t5. Play\n\t6. exit\n");
+    int choice;
+    scanf(" %d", &choice);
+    while (choice < 0 || choice > PLAYLIST_EXIT) {
+        printf("Invalid Choice\n");
+        scanf(" %d", &choice);
+    }
+    // Consume \n
+    getchar();
+    switch (choice) {
+        case ADD_SONG: {
+            addSong(playlist);
+        }
+        case PLAYLIST_EXIT: {
+            return;
+        }
+        default: {
+            // Should not be reached
+            break;
+        }
+    }
+    if (choice == PLAYLIST_EXIT) {
+        return;
+    }
+}
+
+PlaylistList *findPlaylistByIndex(PlaylistList *playlists, int index) {
+    // Using indexes starting with 1.
+    PlaylistList *currentNode = playlists;
+    int counter = 1;
+    while (counter != index) {
+        currentNode = currentNode->next;
+        ++counter;
+    }
+    return currentNode;
+}
+
 void watchPlaylists(PlaylistList *playlists) {
-    int currentChoice = 1;
+    int lastChoice = 1;
 
     // Point to the first playlist
     PlaylistList *currentPlaylist = playlists;
     for (int i = 0; i < playlists->numOfPlaylist; ++i) {
         // Print the name of current playlist, advance pointer.
-        printf("%d. %s\n", currentChoice, currentPlaylist->playlist->name);
+        printf("%d. %s\n", lastChoice, currentPlaylist->playlist->name);
         currentPlaylist = currentPlaylist->next;
-        ++currentChoice;
+        ++lastChoice;
     }
-    printf("%d. Back to main menu\n", currentChoice);
-    char choice;
-    scanf(" %c", &choice);
-    while (choice < 0 || choice > currentChoice) {
+    printf("%d. Back to main menu\n", lastChoice);
+    int choice;
+    scanf(" %d", &choice);
+    while (choice < 0 || choice > lastChoice) {
         printf("Invalid Choice\n");
+        scanf(" %d", &choice);
     }
+    // Consume \n
+    getchar();
+    if (choice == lastChoice) {
+        return;
+    }
+    PlaylistList *playlistNode = findPlaylistByIndex(playlists, choice);
+    playlistMenu(playlistNode->playlist);
 }
 
 // Return the last node of the playlists' list
@@ -58,6 +187,7 @@ PlaylistList *findLastPlaylist(PlaylistList *playlists) {
     return currentNode;
 }
 
+
 void AddPlaylist(PlaylistList *playlists) {
     // Consume \n
     getchar();
@@ -65,66 +195,83 @@ void AddPlaylist(PlaylistList *playlists) {
     printf("Enter playlist's name:");
 
     // Start with a string in the len of 1
-    char *playlistName = calloc(1, sizeof(char *));
-
-    // Get a single char each time
-    char newChar = (char) getchar();
-    int counter = 0;
-    while (newChar != '\n') {
-
-        // Add new char to current index
-        playlistName[counter] = newChar;
-        ++counter;
-
-        // Resize the string to have space for the new char
-        playlistName = realloc(playlistName, sizeof(playlistName) + sizeof(char*));
-
-        // If realloc failed, crash
-        if (playlistName == NULL)
-            exit(1);
-
-        // read the next char
-        newChar = (char) getchar();
-    }
-
-    printf("got name %s\n", playlistName);
-
-    // Get last node.
-    PlaylistList *lastPlaylist = findLastPlaylist(playlists);
+    char *playlistName = getString();
 
     // Create new playlist.
-    Playlist* newPlaylist= malloc(sizeof(PlaylistList));
+    Playlist *newPlaylist = malloc(sizeof(PlaylistList));
     newPlaylist->name = playlistName;
     newPlaylist->songsNum = 0;
+    newPlaylist->songList = calloc(1, sizeof(SongList));
+
+    PlaylistList *lastPlaylist;
+
+    if (playlists->playlist == NULL)
+
+        lastPlaylist = playlists;
+    else {
+        lastPlaylist = findLastPlaylist(playlists);
+        lastPlaylist = lastPlaylist->next;
+    }
 
     // Add node to playlists
     lastPlaylist->playlist = newPlaylist;
     ++playlists->numOfPlaylist;
 }
 
-void deleteSong() {
-    printf("Song deleted successfully.\n");
+void freeSong(Song *song) {
+    free(song->title);
+    free(song->artist);
+    free(song->lyrics);
+    free(song);
 }
 
-
-void playSong() {
-}
-
-
-void freeSong() {
-}
-
-void freePlaylist(P) {
-}
-
-void freePlaylists(PlaylistList *playlists) {
-    PlaylistList *currentNode = playlists;
-    PlaylistList *nextNode = currentNode->next;
+void freeSongList(SongList *songList) {
+    SongList *currentNode = songList;
+    printf("Trying to get next\n");
+    SongList *nextNode = NULL;
+    if (currentNode->next != NULL)
+        nextNode = currentNode->next;
     while (nextNode != NULL) {
+        printf("Inside freeSongList while loop\n");
+        freeSong(currentNode->song);
         free(currentNode);
         currentNode = nextNode;
         nextNode = currentNode->next;
     }
+    printf("freeing current song node\n");
+    if (currentNode->song != NULL)
+        freeSong(currentNode->song);
+    free(currentNode);
+}
+
+void freePlaylist(Playlist *playlist) {
+    // TODO for song in song list, free
+    if (playlist == NULL) {
+        return;
+    }
+    printf("Entering FreeSongList\n");
+    if (playlist->songList != NULL) {
+        freeSongList(playlist->songList);
+        printf("Done FreeSongList\n");
+    }
+    free(playlist->name);
+    free(playlist);
+}
+
+void freePlaylists(PlaylistList *playlists) {
+    // Go over all nodes
+    PlaylistList *currentNode = playlists;
+    PlaylistList *nextNode = currentNode->next;
+    while (nextNode != NULL) {
+        // Free the playlist
+        freePlaylist(currentNode->playlist);
+
+        // Free the current node. move to next one.
+        free(currentNode);
+        currentNode = nextNode;
+        nextNode = currentNode->next;
+    }
+    freePlaylist(currentNode->playlist);
     free(currentNode);
 }
 
@@ -133,39 +280,38 @@ void printPlaylistsMenu() {
     printf("\t1. Watch playlists\n\t2. Add playlist\n\t3. Remove playlist\n\t4. exit\n");
 }
 
-
-void sortPlaylist() {
-    printf("sorted\n");
-}
-
-
 int main() {
     // Set the default value of choice to a null one.
     char choice = '0';
-    PlaylistList *playlists = malloc(sizeof(PlaylistList));
+    // Song *song = calloc(1, sizeof(0));
+    // SongList *songList = calloc(1, sizeof(songList));
+    // songList->song = song;
+    // Playlist *p = calloc(1, sizeof(Playlist));
+    // p->songList = songList;
+    PlaylistList *playlists = calloc(1, sizeof(PlaylistList));
     if (playlists == NULL) {
         return 1;
     }
-
+    // playlists->playlist = p;
+    // printf("%s\n", p->songList->song->artist);
     // Initialize the playlists' list.
     playlists->numOfPlaylist = 0;
-    playlists->playlist->name = "First song";
-    playlists->next = NULL;
 
-    while (choice != '4') {
+    while (choice != MAIN_EXIT) {
         printPlaylistsMenu();
         scanf(" %c", &choice);
         switch (choice) {
-            case '1': {
-                printf("%s\n",playlists->playlist->name);
+            case WATCH_PLAYLIST: {
                 watchPlaylists(playlists);
                 break;
             }
-            case '2': {
+            case ADD_PLAYLIST: {
                 AddPlaylist(playlists);
-                printf("%s\n",playlists->playlist->name);
+                // printf("%s\n", playlists->playlist->name);
                 break;
             }
+            case MAIN_EXIT:
+                break;
             default: {
                 printf("Invalid choice\n");
                 break;
