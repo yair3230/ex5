@@ -76,6 +76,24 @@ SongList *findLastSong(SongList *songList) {
     return currentNode;
 }
 
+void watchPlayList(Playlist *playlist) {
+    int counter = 1;
+    SongList *currentNode = playlist->songList;
+    Song *song = currentNode->song;
+    while (song != NULL) {
+        printf("%d. Title: %s\n", counter, song->title);
+        printf("\tArtist: %s\n", song->artist);
+        printf("\tReleased: %d\n", song->year);
+        printf("\tStreams: %d\n", song->streams);
+        ++counter;
+        currentNode = currentNode->next;
+        if (currentNode == NULL)
+            break;
+        song = currentNode->song;
+    }
+    printf("choose a song to play, or 0 to quit:\n");
+}
+
 void addSong(Playlist *playlist) {
     SongList *lastNode = findLastSong(playlist->songList);
     SongList *newNode;
@@ -113,29 +131,32 @@ void addSong(Playlist *playlist) {
 
 void playlistMenu(Playlist *playlist) {
     printf("playlist %s\n", playlist->name);
-    printf("\t1. Show Playlist\n\t2. Add Song\n\t3. Delete Song\n\t4. Sort\n\t5. Play\n\t6. exit\n");
-    int choice;
-    scanf(" %d", &choice);
-    while (choice < 0 || choice > PLAYLIST_EXIT) {
-        printf("Invalid Choice\n");
-        scanf(" %d", &choice);
-    }
-    // Consume \n
-    getchar();
-    switch (choice) {
-        case ADD_SONG: {
-            addSong(playlist);
+
+    // Init with invalid value
+    char choice = '0';
+    while (choice != PLAYLIST_EXIT) {
+        printf("\t1. Show Playlist\n\t2. Add Song\n\t3. Delete Song\n\t4. Sort\n\t5. Play\n\t6. exit\n");
+        scanf(" %c", &choice);
+        getchar(); // Consume \n
+
+        switch (choice) {
+            case WATCH_PLAYLIST: {
+                watchPlayList(playlist);
+                break;
+            }
+            case ADD_SONG: {
+                addSong(playlist);
+                break;
+            }
+            case PLAYLIST_EXIT: {
+                return;
+            }
+            default: {
+                printf("Invalid Choice\n");
+                scanf(" %c", &choice);
+                break;
+            }
         }
-        case PLAYLIST_EXIT: {
-            return;
-        }
-        default: {
-            // Should not be reached
-            break;
-        }
-    }
-    if (choice == PLAYLIST_EXIT) {
-        return;
     }
 }
 
@@ -245,7 +266,6 @@ void freeSongList(SongList *songList) {
 }
 
 void freePlaylist(Playlist *playlist) {
-    // TODO for song in song list, free
     if (playlist == NULL) {
         return;
     }
