@@ -75,6 +75,62 @@ char *getString() {
     return string;
 }
 
+void freeSong(Song *song) {
+    free(song->title);
+    free(song->artist);
+    free(song->lyrics);
+    free(song);
+}
+
+void freeSongList(SongList *songList) {
+    SongList *currentNode = songList;
+    printf("Trying to get next\n");
+    SongList *nextNode = NULL;
+    if (currentNode->next != NULL)
+        nextNode = currentNode->next;
+    while (nextNode != NULL) {
+        printf("Inside freeSongList while loop\n");
+        freeSong(currentNode->song);
+        free(currentNode);
+        currentNode = nextNode;
+        nextNode = currentNode->next;
+    }
+    printf("freeing current song node\n");
+    if (currentNode->song != NULL)
+        freeSong(currentNode->song);
+    free(currentNode);
+}
+
+void freePlaylist(Playlist *playlist) {
+    if (playlist == NULL) {
+        return;
+    }
+    printf("Entering FreeSongList\n");
+    if (playlist->songList != NULL) {
+        freeSongList(playlist->songList);
+        printf("Done FreeSongList\n");
+    }
+    free(playlist->name);
+    free(playlist);
+}
+
+void freePlaylists(PlaylistList *playlists) {
+    // Go over all nodes
+    PlaylistList *currentNode = playlists;
+    PlaylistList *nextNode = currentNode->next;
+    while (nextNode != NULL) {
+        // Free the playlist
+        freePlaylist(currentNode->playlist);
+
+        // Free the current node. move to next one.
+        free(currentNode);
+        currentNode = nextNode;
+        nextNode = currentNode->next;
+    }
+    freePlaylist(currentNode->playlist);
+    free(currentNode);
+}
+
 // Return the last node of the playlists' list
 SongList *findLastSong(SongList *songList) {
     if (songList == NULL) {
@@ -105,7 +161,7 @@ void playSong(Song *song) {
     ++song->streams;
 }
 
-void watchPlayList(Playlist *playlist) {
+void printPlaylist(Playlist *playlist) {
     int counter = 1;
     SongList *currentNode = playlist->songList;
     Song *song = currentNode->song;
@@ -120,6 +176,10 @@ void watchPlayList(Playlist *playlist) {
             break;
         song = currentNode->song;
     }
+}
+
+void watchPlaylist(Playlist *playlist) {
+    printPlaylist(playlist);
 
     // Assuming input is valid
     int choice = -1;
@@ -257,11 +317,38 @@ void sortMenu(Playlist *playlist) {
         "3. sort by streams - descending order\n4. sort alphabetically\n");
     int choice;
     scanf(" %d", &choice);
-    while (choice < 0 || choice > SORT_ALPHABETICALLY) {
-        printf("Invalid choice");
-        scanf(" %d", &choice);
+    if (choice < 1 || choice > SORT_ALPHABETICALLY) {
+        choice = SORT_ALPHABETICALLY;
     }
     sortPlaylist(playlist, choice);
+    printf("sorted\n");
+}
+
+void deleteSong(Playlist *playlist) {
+    printPlaylist(playlist);
+    printf("choose a song to delete, or 0 to quit:");
+    int choice;
+    SongList *tempSong;
+    scanf("%d", &choice);
+
+    if (choice == 1) {
+        tempSong = playlist->songList;
+        playlist->songList = tempSong->next;
+        tempSong->next = NULL;
+        freeSongList(tempSong);
+    } else {
+        int index = 2;
+        SongList *prevSong = playlist->songList;
+        tempSong = prevSong->next;
+        while (index < choice) {
+            prevSong = tempSong;
+            tempSong = tempSong->next;
+        }
+        // Skip the removed song
+        prevSong->next = tempSong->next;
+        freeSongList(tempSong);
+    }
+    printf("Song deleted successfully.");
 }
 
 void playlistMenu(Playlist *playlist) {
@@ -276,11 +363,15 @@ void playlistMenu(Playlist *playlist) {
 
         switch (choice) {
             case WATCH_PLAYLIST: {
-                watchPlayList(playlist);
+                watchPlaylist(playlist);
                 break;
             }
             case ADD_SONG: {
                 addSong(playlist);
+                break;
+            }
+            case DELETE_SONG: {
+                deleteSong(playlist);
                 break;
             }
             case PLAY_SONG: {
@@ -382,61 +473,6 @@ void AddPlaylist(PlaylistList *playlists) {
     ++playlists->numOfPlaylist;
 }
 
-void freeSong(Song *song) {
-    free(song->title);
-    free(song->artist);
-    free(song->lyrics);
-    free(song);
-}
-
-void freeSongList(SongList *songList) {
-    SongList *currentNode = songList;
-    printf("Trying to get next\n");
-    SongList *nextNode = NULL;
-    if (currentNode->next != NULL)
-        nextNode = currentNode->next;
-    while (nextNode != NULL) {
-        printf("Inside freeSongList while loop\n");
-        freeSong(currentNode->song);
-        free(currentNode);
-        currentNode = nextNode;
-        nextNode = currentNode->next;
-    }
-    printf("freeing current song node\n");
-    if (currentNode->song != NULL)
-        freeSong(currentNode->song);
-    free(currentNode);
-}
-
-void freePlaylist(Playlist *playlist) {
-    if (playlist == NULL) {
-        return;
-    }
-    printf("Entering FreeSongList\n");
-    if (playlist->songList != NULL) {
-        freeSongList(playlist->songList);
-        printf("Done FreeSongList\n");
-    }
-    free(playlist->name);
-    free(playlist);
-}
-
-void freePlaylists(PlaylistList *playlists) {
-    // Go over all nodes
-    PlaylistList *currentNode = playlists;
-    PlaylistList *nextNode = currentNode->next;
-    while (nextNode != NULL) {
-        // Free the playlist
-        freePlaylist(currentNode->playlist);
-
-        // Free the current node. move to next one.
-        free(currentNode);
-        currentNode = nextNode;
-        nextNode = currentNode->next;
-    }
-    freePlaylist(currentNode->playlist);
-    free(currentNode);
-}
 
 void printPlaylistsMenu() {
     printf("Please Choose:\n");
