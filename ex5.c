@@ -14,6 +14,8 @@
 # define PLAY_SONG '5'
 # define PLAYLIST_EXIT '6'
 
+# define SONG_QUIT 0
+
 typedef struct Song {
     char *title;
     char *artist;
@@ -76,6 +78,17 @@ SongList *findLastSong(SongList *songList) {
     return currentNode;
 }
 
+SongList *findSongByIndex(SongList *songList, int index) {
+    // Using indexes starting with 1.
+    SongList *currentNode = songList;
+    int counter = 1;
+    while (counter != index) {
+        currentNode = currentNode->next;
+        ++counter;
+    }
+    return currentNode;
+}
+
 void watchPlayList(Playlist *playlist) {
     int counter = 1;
     SongList *currentNode = playlist->songList;
@@ -91,7 +104,19 @@ void watchPlayList(Playlist *playlist) {
             break;
         song = currentNode->song;
     }
-    printf("choose a song to play, or 0 to quit:\n");
+    // Assuming input is valid
+    int choice = -1;
+    while (choice != SONG_QUIT) {
+        printf("choose a song to play, or 0 to quit:\n");
+
+        scanf(" %d", &choice);
+        getchar(); // Consume \n
+        if (choice == SONG_QUIT)
+            return;
+        SongList* songNode = findSongByIndex(playlist->songList, choice);
+        printf("$ %s $\n", songNode->song->lyrics);
+        ++songNode->song->streams;
+    }
 }
 
 void addSong(Playlist *playlist) {
