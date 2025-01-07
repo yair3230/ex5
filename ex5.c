@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-// TODO exit and free all on every malloc, calloc, realloc
+// signatures
 # define TRUE 1
 # define FALSE 0
 
@@ -51,7 +51,8 @@ typedef struct PlaylistList {
 char *getString() {
     char *userInput = malloc(sizeof(char) * 2);
     if (userInput == NULL) {
-        return 0;
+        printf("memory allocation failed\n");
+        exit(1);
     }
     char *tempBuffer;
 
@@ -59,17 +60,20 @@ char *getString() {
     char newChar = (char) getchar();
     int counter = 0;
     while (newChar != '\n') {
+        // Skip \r chars
+        if (newChar == '\r') {
+            newChar = (char) getchar();
+            continue;
+        }
         // Add new char to current index
         userInput[counter] = newChar;
         userInput[counter + 1] = '\0';
         ++counter;
 
         // Resize the userInput to have space for the new char
-        tempBuffer = (char *) realloc(userInput, counter+2);
-
-        // If realloc failed, crash
+        tempBuffer = (char *) realloc(userInput, counter + 2);
         if (tempBuffer == NULL) {
-            free(userInput);
+            printf("memory allocation failed\n");
             exit(1);
         }
         userInput = tempBuffer;
@@ -78,6 +82,21 @@ char *getString() {
         newChar = (char) getchar();
     }
     return userInput;
+}
+
+void printPlaylists(PlaylistList *playlists, int numOfPlaylists) {
+    int counter = 1;
+    // Point to the first playlist
+    PlaylistList *currentPlaylist = playlists;
+    while (counter != numOfPlaylists + 1) {
+        printf("%d. %s\n", counter, currentPlaylist->playlist->name);
+        ++counter;
+        if (currentPlaylist->next == NULL) {
+            break;
+        }
+        currentPlaylist = currentPlaylist->next;
+    }
+    printf("%d. Back to main menu\n", counter);
 }
 
 void freeSong(Song *song) {
@@ -133,6 +152,7 @@ void freePlaylists(PlaylistList *playlists) {
         nextNode = currentNode->next;
     }
     freePlaylist(currentNode->playlist);
+    free(currentNode);
 }
 
 // Return the last node of the playlists' list
@@ -209,6 +229,10 @@ void addSong(Playlist *playlist) {
     if (lastNode->song != NULL) {
         // If current node is occupied, we add the new node as next
         newNode = calloc(1, sizeof(SongList));
+        if (newNode == NULL) {
+            printf("memory allocation failed\n");
+            exit(1);
+        }
         lastNode->next = newNode;
     } else {
         // If current node is empty, this is the node we are editing.
@@ -216,6 +240,10 @@ void addSong(Playlist *playlist) {
     }
     // Create emtpy song
     newNode->song = calloc(1, sizeof(Song));
+    if (newNode == NULL) {
+        printf("memory allocation failed\n");
+        exit(1);
+    }
 
     // Get details from user
     printf("Enter song's details\n");
@@ -411,32 +439,19 @@ PlaylistList *findPlaylistByIndex(PlaylistList *playlists, int index) {
     return currentNode;
 }
 
-void watchPlaylists(PlaylistList *playlists) {
-    int lastChoice = 1;
+void watchPlaylists(PlaylistList *playlists, int numOfPlaylists) {
+    int choice = 0, exitOption = numOfPlaylists+1;
+    while (choice != exitOption + 1) {
+        printPlaylists(playlists, numOfPlaylists);
 
-    int choice = 0;
-    while (choice != lastChoice) {
-        lastChoice = 1;
-
-        // Point to the first playlist
-        PlaylistList *currentPlaylist = playlists;
-        while (currentPlaylist != NULL) {
-            printf("%d. %s\n", lastChoice, currentPlaylist->playlist->name);
-            ++lastChoice;
-            if (currentPlaylist->next == NULL) {
-                break;
-            }
-            currentPlaylist= currentPlaylist->next;
-        }
-        printf("%d. Back to main menu\n", lastChoice);
         scanf(" %d", &choice);
-        while (choice < 0 || choice > lastChoice) {
+        while (choice < 0 || choice > exitOption) {
             printf("Invalid Choice\n");
             scanf(" %d", &choice);
         }
         // Consume \n
         getchar();
-        if (choice == lastChoice) {
+        if (choice == exitOption) {
             return;
         }
         PlaylistList *playlistNode = findPlaylistByIndex(playlists, choice);
@@ -455,7 +470,7 @@ PlaylistList *findLastPlaylist(PlaylistList *playlists) {
 }
 
 
-void addPlaylist(PlaylistList *playlists) {
+void addPlaylist(PlaylistList *playlists, int *numOfPlaylists) {
     // Consume \n
     getchar();
 
@@ -469,6 +484,10 @@ void addPlaylist(PlaylistList *playlists) {
     newPlaylist->name = playlistName;
     newPlaylist->songsNum = 0;
     newPlaylist->songList = calloc(1, sizeof(SongList));
+    if (newPlaylist->songList == NULL) {
+        printf("memory allocation failed\n");
+        exit(1);
+    }
 
     PlaylistList *lastPlaylist;
 
@@ -477,30 +496,25 @@ void addPlaylist(PlaylistList *playlists) {
     else {
         lastPlaylist = findLastPlaylist(playlists);
         PlaylistList *newNode = calloc(1, sizeof(PlaylistList));
+        if (newNode == NULL) {
+            printf("memory allocation failed\n");
+            exit(1);
+        }
         newNode->playlist = newPlaylist;
         newNode->next = NULL;
 
         // Add node to playlists
         lastPlaylist->next = newNode;
     }
+    ++*numOfPlaylists;
 }
 
-PlaylistList* removePlaylist(PlaylistList *playlists) {
+PlaylistList *removePlaylist(PlaylistList *playlists, int numOfPlaylists) {
+    // Print menu
     printf("Choose a playlist:\n");
-    int lastChoice = 1;
+    printPlaylists(playlists, numOfPlaylists);
 
-    // Point to the first playlist
-    PlaylistList *currentPlaylist = playlists;
-    while (currentPlaylist != NULL) {
-        printf("%d. %s\n", lastChoice, currentPlaylist->playlist->name);
-        ++lastChoice;
-        if (currentPlaylist->next == NULL) {
-            break;
-        }
-        currentPlaylist= currentPlaylist->next;
-    }
-    printf("%d. Back to main menu\n", lastChoice);
-    int choice;
+    int choice, lastChoice = 1;
     scanf(" %d", &choice);
     while (choice < 0 || choice > lastChoice) {
         printf("Invalid Choice\n");
@@ -513,9 +527,9 @@ PlaylistList* removePlaylist(PlaylistList *playlists) {
         return playlists;
     }
     PlaylistList *tempPlaylist;
+
     // Remove first playlist
     if (choice == 1) {
-
         // Point to the playlist that is about to be deleted
         tempPlaylist = playlists;
 
@@ -542,6 +556,10 @@ PlaylistList* removePlaylist(PlaylistList *playlists) {
     }
     if (playlists == NULL) {
         playlists = calloc(1, sizeof(PlaylistList));
+        if (playlists == NULL) {
+            printf("memory allocation failed\n");
+            exit(1);
+        }
         // playlists->numOfPlaylist = 0;
         playlists->playlist = NULL;
         printf("aaa adress %p", playlists);
@@ -556,17 +574,12 @@ void printPlaylistsMenu() {
 }
 
 int main() {
-    // printf("%d", strcmp("bbb","bba"));
-    // exit(0);
     // Set the default value of choice to a null one.
     char choice = '0';
-    // Song *song = calloc(1, sizeof(0));
-    // SongList *songList = calloc(1, sizeof(songList));
-    // songList->song = song;
-    // Playlist *p = calloc(1, sizeof(Playlist));
-    // p->songList = songList;
+    int numOfPlaylists = 0;
     PlaylistList *playlists = calloc(1, sizeof(PlaylistList));
     if (playlists == NULL) {
+        printf("memory allocation failed\n");
         return 1;
     }
 
@@ -575,15 +588,16 @@ int main() {
         scanf(" %c", &choice);
         switch (choice) {
             case WATCH_PLAYLIST: {
-                watchPlaylists(playlists);
+                watchPlaylists(playlists, numOfPlaylists);
                 break;
             }
             case ADD_PLAYLIST: {
-                addPlaylist(playlists);
+                addPlaylist(playlists, &numOfPlaylists);
+                printf("num of playlists%d\n", numOfPlaylists);
                 break;
             }
             case REMOVE_PLAYLIST: {
-                playlists = removePlaylist(playlists);
+                playlists = removePlaylist(playlists, numOfPlaylists);
                 printf("\naa address %p\n", playlists);
                 break;
             }
@@ -596,6 +610,6 @@ int main() {
         }
     }
     freePlaylists(playlists);
-    free(playlists);
+    printf("Done freePlaylists\n");
     printf("Goodbye!\n");
 }
