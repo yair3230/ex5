@@ -414,30 +414,34 @@ PlaylistList *findPlaylistByIndex(PlaylistList *playlists, int index) {
 void watchPlaylists(PlaylistList *playlists) {
     int lastChoice = 1;
 
-    // Point to the first playlist
-    PlaylistList *currentPlaylist = playlists;
-    while (currentPlaylist != NULL) {
-        printf("%d. %s\n", lastChoice, currentPlaylist->playlist->name);
-        ++lastChoice;
-        if (currentPlaylist->next == NULL) {
-            break;
+    int choice = 0;
+    while (choice != lastChoice) {
+        lastChoice = 1;
+
+        // Point to the first playlist
+        PlaylistList *currentPlaylist = playlists;
+        while (currentPlaylist != NULL) {
+            printf("%d. %s\n", lastChoice, currentPlaylist->playlist->name);
+            ++lastChoice;
+            if (currentPlaylist->next == NULL) {
+                break;
+            }
+            currentPlaylist= currentPlaylist->next;
         }
-        currentPlaylist= currentPlaylist->next;
-    }
-    printf("%d. Back to main menu\n", lastChoice);
-    int choice;
-    scanf(" %d", &choice);
-    while (choice < 0 || choice > lastChoice) {
-        printf("Invalid Choice\n");
+        printf("%d. Back to main menu\n", lastChoice);
         scanf(" %d", &choice);
+        while (choice < 0 || choice > lastChoice) {
+            printf("Invalid Choice\n");
+            scanf(" %d", &choice);
+        }
+        // Consume \n
+        getchar();
+        if (choice == lastChoice) {
+            return;
+        }
+        PlaylistList *playlistNode = findPlaylistByIndex(playlists, choice);
+        playlistMenu(playlistNode->playlist);
     }
-    // Consume \n
-    getchar();
-    if (choice == lastChoice) {
-        return;
-    }
-    PlaylistList *playlistNode = findPlaylistByIndex(playlists, choice);
-    playlistMenu(playlistNode->playlist);
 }
 
 // Return the last node of the playlists' list
