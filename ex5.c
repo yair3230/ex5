@@ -249,12 +249,11 @@ void printPlaylists(PlaylistList *playlists, int numOfPlaylists) {
     int counter = 1;
     // Point to the first playlist
     PlaylistList *currentPlaylist = playlists;
-    while (counter != numOfPlaylists + 1) {
+    while (counter < numOfPlaylists + 1) {
         printf("%d. %s\n", counter, currentPlaylist->playlist->name);
-        if (currentPlaylist->next == NULL) {
-            break;
+        if (currentPlaylist->next != NULL) {
+            currentPlaylist = currentPlaylist->next;
         }
-        currentPlaylist = currentPlaylist->next;
         ++counter;
     }
     printf("%d. Back to main menu\n", counter);
