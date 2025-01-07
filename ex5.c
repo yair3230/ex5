@@ -4,6 +4,7 @@
 
 # define TRUE 1
 # define FALSE 0
+# define ERROR_EXIT_CODE 1
 
 # define WATCH_PLAYLIST '1'
 # define ADD_PLAYLIST '2'
@@ -52,13 +53,11 @@ char *getString();
 
 void freeSong(Song *song);
 
-void freeSongList(SongList *songList);
+void freeSongList(SongList *songList, int songNum);
 
 void freePlaylist(Playlist *playlist);
 
-void freePlaylists(PlaylistList *playlists);
-
-void test();
+void freePlaylists(PlaylistList *playlists, int numOfPlaylists);
 
 void printPlaylists(PlaylistList *playlists, int numOfPlaylists);
 
@@ -67,12 +66,12 @@ void printPlaylist(Playlist *playlist);
 void printPlaylistsMenu();
 
 // Return the last node of the playlists' list
-SongList *findLastSong(SongList *songList);
+SongList *findLastSong(SongList *songList, int songNum);
 
 SongList *findSongByIndex(SongList *songList, int index);
 
 // Return the last node of the playlists' list
-PlaylistList *findLastPlaylist(PlaylistList *playlists);
+PlaylistList *findLastPlaylist(PlaylistList *playlists, int numOfPlaylists);
 
 PlaylistList *findPlaylistByIndex(PlaylistList *playlists, int index);
 
@@ -108,16 +107,21 @@ PlaylistList *removePlaylist(PlaylistList *playlists, int *numOfPlaylists);
 int main() {
     // Set the default value of choice to a null one.
     char choice = '0';
-    int numOfPlaylists = 0;
+    int numOfPlaylists = 0, consumedChar;
     PlaylistList *playlists = calloc(1, sizeof(PlaylistList));
     if (playlists == NULL) {
         printf("memory allocation failed\n");
-        return 1;
+        return ERROR_EXIT_CODE;
     }
 
     while (choice != MAIN_EXIT) {
         printPlaylistsMenu();
         scanf(" %c", &choice);
+
+        consumedChar = getchar(); // Consume \n
+        if (consumedChar == '\r') {
+            getchar();
+        }
         switch (choice) {
             case WATCH_PLAYLIST: {
                 watchPlaylists(playlists, numOfPlaylists);
@@ -125,12 +129,10 @@ int main() {
             }
             case ADD_PLAYLIST: {
                 addPlaylist(playlists, &numOfPlaylists);
-                printf("num of playlists%d\n", numOfPlaylists);
                 break;
             }
             case REMOVE_PLAYLIST: {
                 playlists = removePlaylist(playlists, &numOfPlaylists);
-                printf("\naa address %p\n", playlists);
                 break;
             }
             case MAIN_EXIT:
@@ -141,16 +143,16 @@ int main() {
             }
         }
     }
-    freePlaylists(playlists);
-    printf("Done freePlaylists\n");
+    freePlaylists(playlists, numOfPlaylists);
     printf("Goodbye!\n");
 }
 
 char *getString() {
+    // Allocate space for a single char and \0
     char *userInput = malloc(sizeof(char) * 2);
     if (userInput == NULL) {
         printf("memory allocation failed\n");
-        exit(1);
+        exit(ERROR_EXIT_CODE);
     }
     char *tempBuffer;
 
@@ -172,7 +174,7 @@ char *getString() {
         tempBuffer = (char *) realloc(userInput, counter + 2);
         if (tempBuffer == NULL) {
             printf("memory allocation failed\n");
-            exit(1);
+            exit(ERROR_EXIT_CODE);
         }
         userInput = tempBuffer;
 
@@ -190,20 +192,22 @@ void freeSong(Song *song) {
     free(song);
 }
 
-void freeSongList(SongList *songList) {
+void freeSongList(SongList *songList, int songNum) {
     SongList *currentNode = songList;
-    printf("Trying to get next\n");
     SongList *nextNode = NULL;
+
+    // Set next node if there is any
     if (currentNode->next != NULL)
         nextNode = currentNode->next;
-    while (nextNode != NULL) {
-        printf("Inside freeSongList while loop\n");
+    int index = 0;
+    // free current song and move to next, only if a next song exists
+    while (index < songNum - 1) {
         freeSong(currentNode->song);
         free(currentNode);
         currentNode = nextNode;
         nextNode = currentNode->next;
+        ++index;
     }
-    printf("freeing current song node\n");
     if (currentNode->song != NULL)
         freeSong(currentNode->song);
     free(currentNode);
@@ -213,20 +217,19 @@ void freePlaylist(Playlist *playlist) {
     if (playlist == NULL) {
         return;
     }
-    printf("Entering FreeSongList\n");
     if (playlist->songList != NULL) {
-        freeSongList(playlist->songList);
-        printf("Done FreeSongList\n");
+        freeSongList(playlist->songList, playlist->songsNum);
     }
     free(playlist->name);
     free(playlist);
 }
 
-void freePlaylists(PlaylistList *playlists) {
+void freePlaylists(PlaylistList *playlists, int numOfPlaylists) {
     // Go over all nodes
     PlaylistList *currentNode = playlists;
     PlaylistList *nextNode = currentNode->next;
-    while (nextNode != NULL) {
+    int index = 1;
+    while (index < numOfPlaylists) {
         // Free the playlist
         freePlaylist(currentNode->playlist);
 
@@ -234,6 +237,7 @@ void freePlaylists(PlaylistList *playlists) {
         free(currentNode);
         currentNode = nextNode;
         nextNode = currentNode->next;
+        ++index;
     }
     freePlaylist(currentNode->playlist);
     free(currentNode);
@@ -241,16 +245,17 @@ void freePlaylists(PlaylistList *playlists) {
 
 // print function
 void printPlaylists(PlaylistList *playlists, int numOfPlaylists) {
+    printf("Choose a playlist:\n");
     int counter = 1;
     // Point to the first playlist
     PlaylistList *currentPlaylist = playlists;
     while (counter != numOfPlaylists + 1) {
         printf("%d. %s\n", counter, currentPlaylist->playlist->name);
-        ++counter;
         if (currentPlaylist->next == NULL) {
             break;
         }
         currentPlaylist = currentPlaylist->next;
+        ++counter;
     }
     printf("%d. Back to main menu\n", counter);
 }
@@ -259,7 +264,7 @@ void printPlaylist(Playlist *playlist) {
     int counter = 1;
     SongList *currentNode = playlist->songList;
     Song *song = currentNode->song;
-    while (song != NULL) {
+    while (counter < playlist->songsNum + 1) {
         printf("%d. Title: %s\n", counter, song->title);
         printf("\tArtist: %s\n", song->artist);
         printf("\tReleased: %d\n", song->year);
@@ -279,14 +284,15 @@ void printPlaylistsMenu() {
 
 // find functions
 // Return the last node of the playlists' list
-SongList *findLastSong(SongList *songList) {
-    if (songList == NULL) {
+SongList *findLastSong(SongList *songList, int songNum) {
+    if (songNum == 0) {
         return songList;
     }
+    int counter = 1;
     SongList *currentNode = songList;
-    while (currentNode->next != NULL) {
-        printf("entered loop");
+    while (counter < songNum) {
         currentNode = currentNode->next;
+        ++counter;
     }
     return currentNode;
 }
@@ -295,7 +301,7 @@ SongList *findSongByIndex(SongList *songList, int index) {
     // Using indexes starting with 1.
     SongList *currentNode = songList;
     int counter = 1;
-    while (counter != index) {
+    while (counter < index) {
         currentNode = currentNode->next;
         ++counter;
     }
@@ -303,11 +309,12 @@ SongList *findSongByIndex(SongList *songList, int index) {
 }
 
 // Return the last node of the playlists' list
-PlaylistList *findLastPlaylist(PlaylistList *playlists) {
+PlaylistList *findLastPlaylist(PlaylistList *playlists, int numOfPlaylists) {
     PlaylistList *currentNode = playlists;
-    while (currentNode->next != NULL) {
-        printf("entered loop");
+    int index = 1;
+    while (index < numOfPlaylists) {
         currentNode = currentNode->next;
+        ++index;
     }
     return currentNode;
 }
@@ -316,7 +323,7 @@ PlaylistList *findPlaylistByIndex(PlaylistList *playlists, int index) {
     // Using indexes starting with 1.
     PlaylistList *currentNode = playlists;
     int counter = 1;
-    while (counter != index) {
+    while (counter < index) {
         currentNode = currentNode->next;
         ++counter;
     }
@@ -340,6 +347,8 @@ int shouldSwap(int sortType, SongList *currentNode, SongList *nextNode) {
     if (sortType == SORT_ALPHABETICALLY) {
         char *nameCurrent = currentNode->song->title;
         char *nameNext = nextNode->song->title;
+
+        // Check if next name should come before current
         if (strcmp(nameCurrent, nameNext) > 0)
             return TRUE;
         return FALSE;
@@ -360,35 +369,37 @@ int shouldSwap(int sortType, SongList *currentNode, SongList *nextNode) {
 }
 
 void sortPlaylist(Playlist *playlist, int sortType) {
-    int sorted = FALSE, firstSong = TRUE;
+    int isSorted = FALSE, isFirstSong = TRUE;
     SongList *currentNode = NULL;
     SongList *prevNode = NULL;
     SongList *nextNode = NULL;
-    while (!sorted) {
+    while (!isSorted) {
         // Re-assign all values
-        sorted = TRUE;
-        firstSong = TRUE;
+        isSorted = TRUE;
+        isFirstSong = TRUE;
         currentNode = playlist->songList;
         nextNode = currentNode->next;
         prevNode = NULL;
 
         // Stop when there is no next node
-        while (currentNode->next != NULL) {
+        int index = 1;
+        while (index < playlist->songsNum) {
             // Check if alphabetically the names should be swapped.
             if (shouldSwap(sortType, currentNode, nextNode)) {
-                sorted = FALSE;
-                if (firstSong) {
+                isSorted = FALSE;
+                if (isFirstSong) {
                     swapFirstSongNode(playlist, currentNode, nextNode);
                 } else {
                     swapSongNode(prevNode, currentNode, nextNode);
                 }
             }
-            firstSong = FALSE;
+            isFirstSong = FALSE;
 
             // Go to next node
             prevNode = currentNode;
             currentNode = nextNode;
             nextNode = nextNode->next;
+            ++index;
         }
     }
 }
@@ -407,14 +418,14 @@ void sortMenu(Playlist *playlist) {
 
 // Song functions
 void addSong(Playlist *playlist) {
-    SongList *lastNode = findLastSong(playlist->songList);
+    SongList *lastNode = findLastSong(playlist->songList, playlist->songsNum);
     SongList *newNode;
     if (lastNode->song != NULL) {
         // If current node is occupied, we add the new node as next
         newNode = calloc(1, sizeof(SongList));
         if (newNode == NULL) {
             printf("memory allocation failed\n");
-            exit(1);
+            exit(ERROR_EXIT_CODE);
         }
         lastNode->next = newNode;
     } else {
@@ -425,7 +436,7 @@ void addSong(Playlist *playlist) {
     newNode->song = calloc(1, sizeof(Song));
     if (newNode == NULL) {
         printf("memory allocation failed\n");
-        exit(1);
+        exit(ERROR_EXIT_CODE);
     }
 
     // Get details from user
@@ -439,14 +450,17 @@ void addSong(Playlist *playlist) {
     newNode->song->artist = artist;
 
     printf("Year of release:\n");
-    int year = 0;
+    int year;
     scanf("%4d", &year);
     newNode->song->year = year;
-
-    getchar(); // Consume \n
+    int consumedChar = getchar(); // Consume \r\n
+    if (consumedChar == '\r') {
+        getchar();
+    }
     printf("Lyrics:\n");
     char *lyrics = getString();
     newNode->song->lyrics = lyrics;
+    ++playlist->songsNum;
 }
 
 void playSong(Song *song) {
@@ -457,16 +471,18 @@ void playSong(Song *song) {
 
 void playAllSongs(Playlist *playlist) {
     SongList *currentSong = playlist->songList;
-    while (currentSong->next != NULL) {
+    int index = 0;
+    while (index < playlist->songsNum-1) {
         playSong(currentSong->song);
         currentSong = currentSong->next;
+        ++index;
     }
     playSong(currentSong->song);
 }
 
 void deleteSong(Playlist *playlist) {
     printPlaylist(playlist);
-    printf("choose a song to delete, or 0 to quit:");
+    printf("choose a song to delete, or 0 to quit:\n");
     int choice;
     SongList *tempSong;
     scanf("%d", &choice);
@@ -477,20 +493,27 @@ void deleteSong(Playlist *playlist) {
         tempSong = playlist->songList;
         playlist->songList = tempSong->next;
         tempSong->next = NULL;
-        freeSongList(tempSong);
+        freeSongList(tempSong, 1);
+        if (playlist->songList == NULL) {
+            playlist->songList = calloc(1,sizeof(SongList));
+        }
     } else {
         int index = 2;
         SongList *prevSong = playlist->songList;
         tempSong = prevSong->next;
+
+        // Find the song we want to remove
         while (index < choice) {
             prevSong = tempSong;
             tempSong = tempSong->next;
+            ++index;
         }
         // Skip the removed song
         prevSong->next = tempSong->next;
-        freeSongList(tempSong);
+        freeSongList(tempSong, 1);
     }
-    printf("Song deleted successfully.");
+    --playlist->songsNum;
+    printf("Song deleted successfully.\n");
 }
 
 // Playlist actions
@@ -498,15 +521,16 @@ void watchPlaylist(Playlist *playlist) {
     printPlaylist(playlist);
 
     // Assuming input is valid
-    int choice = -1;
+    int choice = -1, consumedChar;
     while (choice != SONG_QUIT) {
         printf("choose a song to play, or 0 to quit:\n");
 
         scanf(" %d", &choice);
-        printf("got choice\n");
-        getchar(); // Consume \n
+        consumedChar = getchar(); // Consume \r\n
+        if (consumedChar == '\r') {
+            getchar();
+        }
         if (choice == SONG_QUIT) {
-            printf("entered if\n");
             return;
         }
 
@@ -516,14 +540,18 @@ void watchPlaylist(Playlist *playlist) {
 }
 
 void playlistMenu(Playlist *playlist) {
-    printf("playlist %s\n", playlist->name);
+    printf("playlist %s:\n", playlist->name);
 
     // Init with invalid value
     char choice = '0';
+    int consumedChar;
     while (choice != PLAYLIST_EXIT) {
         printf("\t1. Show Playlist\n\t2. Add Song\n\t3. Delete Song\n\t4. Sort\n\t5. Play\n\t6. exit\n");
         scanf(" %c", &choice);
-        getchar(); // Consume \n
+        consumedChar = getchar(); // Consume \r\n
+        if (consumedChar == '\r') {
+            getchar();
+        }
 
         switch (choice) {
             case WATCH_PLAYLIST: {
@@ -559,17 +587,20 @@ void playlistMenu(Playlist *playlist) {
 }
 
 void watchPlaylists(PlaylistList *playlists, int numOfPlaylists) {
-    int choice = 0, exitOption = numOfPlaylists + 1;
+    int choice = 0, exitOption = numOfPlaylists + 1, consumedChar;
     while (choice != exitOption + 1) {
         printPlaylists(playlists, numOfPlaylists);
 
         scanf(" %d", &choice);
         while (choice < 0 || choice > exitOption) {
-            printf("Invalid Choice\n");
             scanf(" %d", &choice);
         }
         // Consume \n
-        getchar();
+
+        consumedChar = getchar();
+        if (consumedChar == '\r') {
+            getchar();
+        }
         if (choice == exitOption) {
             return;
         }
@@ -579,10 +610,7 @@ void watchPlaylists(PlaylistList *playlists, int numOfPlaylists) {
 }
 
 void addPlaylist(PlaylistList *playlists, int *numOfPlaylists) {
-    // Consume \n
-    getchar();
-
-    printf("Enter playlist's name:");
+    printf("Enter playlist's name:\n");
 
     // Start with a string in the len of 1
     char *playlistName = getString();
@@ -594,7 +622,7 @@ void addPlaylist(PlaylistList *playlists, int *numOfPlaylists) {
     newPlaylist->songList = calloc(1, sizeof(SongList));
     if (newPlaylist->songList == NULL) {
         printf("memory allocation failed\n");
-        exit(1);
+        exit(ERROR_EXIT_CODE);
     }
 
     PlaylistList *lastPlaylist;
@@ -602,11 +630,11 @@ void addPlaylist(PlaylistList *playlists, int *numOfPlaylists) {
     if (playlists->playlist == NULL)
         playlists->playlist = newPlaylist;
     else {
-        lastPlaylist = findLastPlaylist(playlists);
+        lastPlaylist = findLastPlaylist(playlists, *numOfPlaylists);
         PlaylistList *newNode = calloc(1, sizeof(PlaylistList));
         if (newNode == NULL) {
             printf("memory allocation failed\n");
-            exit(1);
+            exit(ERROR_EXIT_CODE);
         }
         newNode->playlist = newPlaylist;
         newNode->next = NULL;
@@ -619,15 +647,17 @@ void addPlaylist(PlaylistList *playlists, int *numOfPlaylists) {
 
 PlaylistList *removePlaylist(PlaylistList *playlists, int *numOfPlaylists) {
     // Print menu
-    printf("Choose a playlist:\n");
     printPlaylists(playlists, *numOfPlaylists);
 
-    int choice, lastChoice = *numOfPlaylists + 1;
+    int choice, lastChoice = *numOfPlaylists + 1, consumedChar;
     scanf(" %d", &choice);
     while (choice < 0 || choice > lastChoice) {
         printf("Invalid Choice\n");
         scanf(" %d", &choice);
-        getchar(); // Consume \n
+        consumedChar = getchar(); // Consume \r\n
+        if (consumedChar == '\r') {
+            getchar();
+        }
     }
 
     // User chose to exit
@@ -646,7 +676,7 @@ PlaylistList *removePlaylist(PlaylistList *playlists, int *numOfPlaylists) {
 
         // Unchained the removed playlist
         tempPlaylist->next = NULL;
-        freePlaylists(tempPlaylist);
+        freePlaylists(tempPlaylist, 1);
     } else {
         int index = 2;
         PlaylistList *prevPlaylist = playlists;
@@ -656,20 +686,19 @@ PlaylistList *removePlaylist(PlaylistList *playlists, int *numOfPlaylists) {
         while (index < choice) {
             prevPlaylist = tempPlaylist;
             tempPlaylist = tempPlaylist->next;
+            ++index;
         }
         // Skip the removed song
         prevPlaylist->next = tempPlaylist->next;
-        freePlaylists(tempPlaylist);
+        freePlaylists(tempPlaylist, 1);
     }
     if (playlists == NULL) {
         playlists = calloc(1, sizeof(PlaylistList));
         if (playlists == NULL) {
             printf("memory allocation failed\n");
-            exit(1);
+            exit(ERROR_EXIT_CODE);
         }
-        // playlists->numOfPlaylist = 0;
         playlists->playlist = NULL;
-        printf("aaa adress %p", playlists);
     }
     printf("Playlist deleted.\n");
     --*numOfPlaylists;
